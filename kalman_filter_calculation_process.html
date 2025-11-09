@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2단계 칼만 필터 계산 과정</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true,
+                processEnvironments: true
+            }
+        };
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.8;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #667eea;
+            border-bottom: 4px solid #764ba2;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-align: center;
+        }
+        
+        h2 {
+            color: #764ba2;
+            margin-top: 50px;
+            margin-bottom: 25px;
+            padding-left: 15px;
+            border-left: 5px solid #667eea;
+            font-size: 1.8em;
+        }
+        
+        h3 {
+            color: #555;
+            margin-top: 35px;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 5px;
+        }
+        
+        h4 {
+            color: #666;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+        
+        .section {
+            margin-bottom: 40px;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .comparison-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .case-box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid;
+        }
+        
+        .case-fixed {
+            border-color: #28a745;
+            background: #f0fff4;
+        }
+        
+        .case-unfixed {
+            border-color: #dc3545;
+            background: #fff5f5;
+        }
+        
+        .case-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        
+        .case-fixed .case-title {
+            background: #28a745;
+            color: white;
+        }
+        
+        .case-unfixed .case-title {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .formula-box {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 15px 0;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+        
+        .formula-box .math {
+            color: #f8f8f2;
+            font-size: 1.1em;
+        }
+        
+        .step-box {
+            background: #e8f4f8;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        
+        .step-number {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .matrix-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            border: 1px solid #ddd;
+            overflow-x: auto;
+        }
+        
+        .info-box {
+            background: #d1ecf1;
+            border-left: 4px solid #0c5460;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        
+        .highlight-box {
+            background: #fff3cd;
+            border-left: 4px solid #856404;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: bold;
+        }
+        
+        tr:hover {
+            background: #f5f5f5;
+        }
+        
+        .common-section {
+            background: #e8f4f8;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        
+        ul, ol {
+            margin-left: 30px;
+            margin-top: 10px;
+        }
+        
+        li {
+            margin: 10px 0;
+        }
+        
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>2단계 칼만 필터 계산 과정</h1>
+        <p style="text-align: center; font-size: 1.2em; color: #666; margin-bottom: 30px;">
+            Fix > 1 (GPS 고정) vs Fix ≤ 1 (GPS 미고정) 비교
+        </p>
+        
+        <div class="section">
+            <h2>1. 공통 사항</h2>
+            
+            <div class="common-section">
+                <h3>1.1 상태 벡터</h3>
+                <p>두 경우 모두 동일한 상태 벡터를 사용합니다:</p>
+                <div class="formula-box">
+                    <div class="math">
+                        $$\mathbf{x} = \begin{bmatrix} d \\ v \\ a \end{bmatrix} = \begin{bmatrix} \text{변위 (displacement)} \\ \text{속도 (velocity)} \\ \text{가속도 (acceleration)} \end{bmatrix}$$
+                    </div>
+                </div>
+                
+                <h3>1.2 상태 전이 행렬</h3>
+                <div class="formula-box">
+                    <div class="math">
+                        $$\mathbf{A}_d = \begin{bmatrix} 1 & \Delta T & \frac{1}{2}\Delta T^2 \\ 0 & 1 & \Delta T \\ 0 & 0 & 1 \end{bmatrix}$$
+                    </div>
+                </div>
+                <p>여기서 $\Delta T = 0.01$ 초 (샘플링 시간 간격)</p>
+                
+                <h3>1.3 프로세스 노이즈 행렬</h3>
+                <div class="formula-box">
+                    <div class="math">
+                        $$\mathbf{G}_d = \begin{bmatrix} \frac{1}{2}\Delta T^2 \\ \Delta T \\ 0 \end{bmatrix}$$
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>2. 측정값 구성 차이</h2>
+            
+            <div class="comparison-container">
+                <div class="case-box case-fixed">
+                    <div class="case-title">Fix > 1 (GPS 고정 상태)</div>
+                    
+                    <h4>측정 벡터 (3차원)</h4>
+                    <div class="formula-box">
+                        <div class="math">
+                            $$\mathbf{y} = \begin{bmatrix} y_d \\ y_v \\ y_a \end{bmatrix} = \begin{bmatrix} \text{RTK 변위} \\ \text{예측 속도} \\ \text{가속도} \end{bmatrix}$$
+                        </div>
+                    </div>
+                    
+                    <h4>측정 행렬 (3×3)</h4>
+                    <div class="formula-box">
+                        <div class="math">
+                            $$\mathbf{H}_{d3} = \begin{bmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \\ 0 & 0 & 1 \end{bmatrix} = \mathbf{I}_3$$
+                        </div>
+                    </div>
+                    <p>단위 행렬: 변위, 속도, 가속도를 모두 측정</p>
+                    
+                    <h4>노이즈 공분산 (3×3)</h4>
+                    <div class="formula-box">
+                        <div class="math">
+                            $$\mathbf{R}_3 = \begin{bmatrix} \sigma_d^2 & 0 & 0 \\ 0 & \sigma_v^2 & 0 \\ 0 & 0 & \sigma_a^2 \end{bmatrix}$$
+                        </div>
+                    </div>
+                    <p>여기서:</p>
+                    <ul>
+                        <li>$\sigma_d^2 = 12.0$ (변위 노이즈)</li>
+                        <li>$\sigma_v^2 = 152500.0$ (속도 노이즈)</li>
+                        <li>$\sigma_a^2 = 1.0$ (가속도 노이즈)</li>
+                    </ul>
+                    
+                    <h4>감도 행렬 (3×2)</h4>
+                    <div class="formula-box">
+                        <div class="math">
+                            $$\mathbf{C}_{d3} = \begin{bmatrix} 0 & 0 \\ 1 & 0 \\ 0 & 1 \end{bmatrix}$$
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="case-box case-unfixed">
+                    <div class="case-title">Fix ≤ 1 (GPS 미고정 상태)</div>
+                    
+                    <h4>측정 벡터 (2차원)</h4>
+                    <div class="formula-box">
+                        <div class="math">
+                            $$\mathbf{y} = \begin{bmatrix} y_v \\ y_a \end{bmatrix} = \begin{bmatrix} \text{예측 속도} \\ \text{가속도} \end{bmatrix}$$
+                        </div>
+                    </div>
+                    <p class="highlight-box"><strong>주의:</strong> RTK 변위는 측정값에 포함되지 않음</p>
+                    
+                    <h4>측정 행렬 (2×3)</h4>
+                    <div class="formula-box">
+                        <div class="math">
+                            $$\mathbf{H}_{d2} = \begin{bmatrix} 0 & 1 & 0 \\ 0 & 0 & 1 \end{bmatrix}$$
+                        </div>
+                    </div>
+                    <p>변위는 측정하지 않고, 속도와 가속도만 측정</p>
+                    
+                    <h4>노이즈 공분산 (2×2)</h4>
+                    <div class="formula-box">
+                        <div class="math">
+                            $$\mathbf{R}_2 = \begin{bmatrix} \sigma_v^2 & 0 \\ 0 & \sigma_a^2 \end{bmatrix}$$
+                        </div>
+                    </div>
+                    <p>여기서:</p>
+                    <ul>
+                        <li>$\sigma_v^2 = 152500.0$ (속도 노이즈)</li>
+                        <li>$\sigma_a^2 = 1.0$ (가속도 노이즈)</li>
+                    </ul>
+                    
+                    <h4>감도 행렬 (2×2)</h4>
+                    <div class="formula-box">
+                        <div class="math">
+                            $$\mathbf{C}_{d2} = \begin{bmatrix} 1 & 0 \\ 0 & 1 \end{bmatrix} = \mathbf{I}_2$$
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>3. 계산 과정</h2>
+            
+            <p>두 경우 모두 동일한 계산 과정을 따르지만, 측정값 구성이 다르므로 계산 결과가 달라집니다.</p>
+            
+            <div class="step-box">
+                <div class="step-number">1</div>
+                <h3>PRIOR ESTIMATION (사전 추정)</h3>
+                
+                <h4>3.1 Bias-free 추정자 예측</h4>
+                <div class="formula-box">
+                    <div class="math">
+                        $$\mathbf{x}_{BF}^- = \mathbf{A}_d \mathbf{x}_{BF}$$
+                    </div>
+                </div>
+                
+                <div class="formula-box">
+                    <div class="math">
+                        $$\mathbf{P}_{BF}^- = \mathbf{A}_d \mathbf{P}_{BF} \mathbf{A}_d^T + \mathbf{G}_d \mathbf{G}_d^T$$
+                    </div>
+                </div>
+                
+                <h4>3.2 감도 행렬 계산</h4>
+                <div class="formula-box">
+                    <div class="math">
+                        $$\mathbf{U} = \mathbf{A}_d \mathbf{V}$$
+                    </div>
+                </div>
+                
+                <div class="info-box">
+                    <strong>설명:</strong> 이 단계는 두 경우 모두 동일합니다. 상태 전이 행렬을 사용하여 이전 상태를 예측합니다.
+                </div>
+            </div>
+            
+            <div class="step-box">
+                <div class="step-number">2</div>
+                <h3>POSTERIOR ESTIMATION (사후 추정)</h3>
+                
+                <h4>3.3 칼만 이득 계산</h4>
+                <div class="comparison-container">
+                    <div class="case-box case-fixed">
+                        <div class="case-title">Fix > 1</div>
+                        <div class="formula-box">
+                            <div class="math">
+                                $$\mathbf{K}_{BF} = \mathbf{P}_{BF}^- \mathbf{H}_{d3}^T (\mathbf{H}_{d3} \mathbf{P}_{BF}^- \mathbf{H}_{d3}^T + \mathbf{R}_3)^{-1}$$
+                            </div>
+                        </div>
+                        <p>크기: 3×3 행렬</p>
+                    </div>
+                    
+                    <div class="case-box case-unfixed">
+                        <div class="case-title">Fix ≤ 1</div>
+                        <div class="formula-box">
+                            <div class="math">
+                                $$\mathbf{K}_{BF} = \mathbf{P}_{BF}^- \mathbf{H}_{d2}^T (\mathbf{H}_{d2} \mathbf{P}_{BF}^- \mathbf{H}_{d2}^T + \mathbf{R}_2)^{-1}$$
+                            </div>
+                        </div>
+                        <p>크기: 3×2 행렬</p>
+                    </div>
+                </div>
+                
+                <h4>3.4 감도 추정자 업데이트</h4>
+                <div class="formula-box">
+                    <div class="math">
+                        $$\mathbf{S} = \mathbf{H}_d \mathbf{U} + \mathbf{C}_d$$
+                    </div>
+                </div>
+                
+                <div class="formula-box">
+                    <div class="math">
+                        $$\mathbf{r} = \mathbf{y} - \mathbf{H}_d \mathbf{x}_{BF}^-$$
+                    </div>
+                </div>
+                
+                <div class="formula-box">
+                    <div class="math">
+                        $$\mathbf{V} = \mathbf{U} - \mathbf{K}_{BF} \mathbf{S}$$
+                    </div>
+                </div>
+                
+                <div class="comparison-container">
+                    <div class="case-box case-fixed">
+                        <div class="case-title">Fix > 1</div>
+                        <p><strong>잔차 벡터:</strong></p>
+                        <div class="formula-box">
+                            <div class="math">
+                                $$\mathbf{r} = \begin{bmatrix} r_d \\ r_v \\ r_a \end{bmatrix} = \begin{bmatrix} \text{RTK 변위} \\ \text{예측 속도} \\ \text{가속도} \end{bmatrix} - \mathbf{H}_{d3} \mathbf{x}_{BF}^-$$
+                            </div>
+                        </div>
+                        <p>RTK 변위가 잔차 계산에 포함됨</p>
+                    </div>
+                    
+                    <div class="case-box case-unfixed">
+                        <div class="case-title">Fix ≤ 1</div>
+                        <p><strong>잔차 벡터:</strong></p>
+                        <div class="formula-box">
+                            <div class="math">
+                                $$\mathbf{r} = \begin{bmatrix} r_v \\ r_a \end{bmatrix} = \begin{bmatrix} \text{예측 속도} \\ \text{가속도} \end{bmatrix} - \mathbf{H}_{d2} \mathbf{x}_{BF}^-$$
+                            </div>
+                        </div>
+                        <p>RTK 변위는 잔차 계산에 포함되지 않음</p>
+                    </div>
+                </div>
+                
+                <h4>3.5 편향 추정자 업데이트</h4>
+                <div class="formula-box">
+                    <div class="math">
+                        $$\mathbf{P}_{temp} = \mathbf{H}_d \mathbf{P}_{BF}^- \mathbf{H}_d^T + \mathbf{S} \mathbf{P}_{BE} \mathbf{S}^T + \mathbf{R}_d$$
+                    </div>
+                </div>
+                
+                <div class="formula-box">
+                    <div class="math">
+                        $$\mathbf{K}_{BE} = \mathbf{P}_{BE} \mathbf{S}^T \mathbf{P}_{temp}^{-1}$$
+                    </div>
+                </div>
+                
+                <div class="formula-box">
+                    <div class="math">
+                        $$\mathbf{b}_{BE} = \mathbf{b}_{BE} + \mathbf{K}_{BE} (\mathbf{r} - \mathbf{S} \mathbf{b}_{BE})$$
+                    </div>
+                </div>
+                
+                <div class="formula-box">
+                    <div class="math">
+                        $$\mathbf{P}_{BE} = \mathbf{P}_{BE} - \mathbf{K}_{BE} \mathbf{S} \mathbf{P}_{BE}$$
+                    </div>
+                </div>
+                
+                <h4>3.6 Bias-free 추정자 업데이트</h4>
+                <div class="formula-box">
+                    <div class="math">
+                        $$\mathbf{x}_{BF} = \mathbf{x}_{BF}^- + \mathbf{K}_{BF} (\mathbf{y} - \mathbf{H}_d \mathbf{x}_{BF}^-)$$
+                    </div>
+                </div>
+                
+                <div class="formula-box">
+                    <div class="math">
+                        $$\mathbf{P}_{BF} = \mathbf{P}_{BF}^- - \mathbf{K}_{BF} \mathbf{H}_d \mathbf{P}_{BF}^-$$
+                    </div>
+                </div>
+                
+                <div class="comparison-container">
+                    <div class="case-box case-fixed">
+                        <div class="case-title">Fix > 1</div>
+                        <p><strong>업데이트 식:</strong></p>
+                        <div class="formula-box">
+                            <div class="math">
+                                $$\mathbf{x}_{BF} = \mathbf{x}_{BF}^- + \mathbf{K}_{BF} \begin{bmatrix} \text{RTK 변위} - d^- \\ \text{예측 속도} - v^- \\ \text{가속도} - a^- \end{bmatrix}$$
+                            </div>
+                        </div>
+                        <p>RTK 변위가 직접적으로 추정값을 보정함</p>
+                    </div>
+                    
+                    <div class="case-box case-unfixed">
+                        <div class="case-title">Fix ≤ 1</div>
+                        <p><strong>업데이트 식:</strong></p>
+                        <div class="formula-box">
+                            <div class="math">
+                                $$\mathbf{x}_{BF} = \mathbf{x}_{BF}^- + \mathbf{K}_{BF} \begin{bmatrix} \text{예측 속도} - v^- \\ \text{가속도} - a^- \end{bmatrix}$$
+                            </div>
+                        </div>
+                        <p>RTK 변위 없이 속도와 가속도만으로 추정</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="step-box">
+                <div class="step-number">3</div>
+                <h3>최종 추정 (Sensitive Estimator)</h3>
+                
+                <div class="formula-box">
+                    <div class="math">
+                        $$\mathbf{x}_{SE} = \mathbf{x}_{BF} + \mathbf{V} \mathbf{b}_{BE}$$
+                    </div>
+                </div>
+                
+                <p>여기서:</p>
+                <ul>
+                    <li>$\mathbf{x}_{SE}$: 최종 추정 상태 벡터 (변위, 속도, 가속도)</li>
+                    <li>$\mathbf{x}_{BF}$: Bias-free 추정자</li>
+                    <li>$\mathbf{V}$: 감도 행렬</li>
+                    <li>$\mathbf{b}_{BE}$: 편향 추정자</li>
+                </ul>
+                
+                <div class="info-box">
+                    <strong>최종 출력:</strong>
+                    <ul>
+                        <li>$\text{DIS} = \mathbf{x}_{SE}[0]$ (변위)</li>
+                        <li>$\text{VEL} = \mathbf{x}_{SE}[1]$ (속도)</li>
+                        <li>$\text{ACC} = \mathbf{x}_{SE}[2]$ (가속도)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>4. 핵심 차이점 요약</h2>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>단계</th>
+                        <th>Fix > 1 (GPS 고정)</th>
+                        <th>Fix ≤ 1 (GPS 미고정)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>측정값</strong></td>
+                        <td>RTK 변위 + 예측 속도 + 가속도 (3개)</td>
+                        <td>예측 속도 + 가속도 (2개)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>측정 행렬 크기</strong></td>
+                        <td>3×3 (단위 행렬)</td>
+                        <td>2×3 (변위 측정 없음)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>노이즈 공분산 크기</strong></td>
+                        <td>3×3</td>
+                        <td>2×2</td>
+                    </tr>
+                    <tr>
+                        <td><strong>칼만 이득 크기</strong></td>
+                        <td>3×3</td>
+                        <td>3×2</td>
+                    </tr>
+                    <tr>
+                        <td><strong>변위 측정</strong></td>
+                        <td>✅ RTK 변위 직접 사용</td>
+                        <td>❌ 변위 측정 없음 (속도/가속도로만 추정)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>정확도</strong></td>
+                        <td>높음 (RTK 변위 보정)</td>
+                        <td>낮음 (적분 오차 누적 가능)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="section">
+            <h2>5. 수식 비교 예시</h2>
+            
+            <h3>5.1 칼만 이득 계산 비교</h3>
+            
+            <div class="comparison-container">
+                <div class="case-box case-fixed">
+                    <div class="case-title">Fix > 1</div>
+                    <p><strong>분모 행렬:</strong></p>
+                    <div class="formula-box">
+                        <div class="math">
+                            $$\mathbf{H}_{d3} \mathbf{P}_{BF}^- \mathbf{H}_{d3}^T + \mathbf{R}_3 = \begin{bmatrix} P_{dd} + \sigma_d^2 & P_{dv} & P_{da} \\ P_{vd} & P_{vv} + \sigma_v^2 & P_{va} \\ P_{ad} & P_{av} & P_{aa} + \sigma_a^2 \end{bmatrix}$$
+                        </div>
+                    </div>
+                    <p>3×3 행렬의 역행렬 계산 필요</p>
+                </div>
+                
+                <div class="case-box case-unfixed">
+                    <div class="case-title">Fix ≤ 1</div>
+                    <p><strong>분모 행렬:</strong></p>
+                    <div class="formula-box">
+                        <div class="math">
+                            $$\mathbf{H}_{d2} \mathbf{P}_{BF}^- \mathbf{H}_{d2}^T + \mathbf{R}_2 = \begin{bmatrix} P_{vv} + \sigma_v^2 & P_{va} \\ P_{av} & P_{aa} + \sigma_a^2 \end{bmatrix}$$
+                        </div>
+                    </div>
+                    <p>2×2 행렬의 역행렬 계산 (더 빠름)</p>
+                </div>
+            </div>
+            
+            <h3>5.2 상태 업데이트 비교</h3>
+            
+            <div class="comparison-container">
+                <div class="case-box case-fixed">
+                    <div class="case-title">Fix > 1</div>
+                    <p><strong>변위 업데이트:</strong></p>
+                    <div class="formula-box">
+                        <div class="math">
+                            $$d = d^- + K_{BF}[0,0] \cdot (\text{RTK 변위} - d^-) + K_{BF}[0,1] \cdot (v_{pred} - v^-) + K_{BF}[0,2] \cdot (a - a^-)$$
+                        </div>
+                    </div>
+                    <p>RTK 변위가 직접 변위 추정에 영향을 줌</p>
+                </div>
+                
+                <div class="case-box case-unfixed">
+                    <div class="case-title">Fix ≤ 1</div>
+                    <p><strong>변위 업데이트:</strong></p>
+                    <div class="formula-box">
+                        <div class="math">
+                            $$d = d^- + K_{BF}[0,0] \cdot (v_{pred} - v^-) + K_{BF}[0,1] \cdot (a - a^-)$$
+                        </div>
+                    </div>
+                    <p>변위는 속도와 가속도로부터 간접적으로 추정됨</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>6. 실제 코드 매핑</h2>
+            
+            <h3>6.1 측정값 구성</h3>
+            <div class="code-block">
+# Fix > 1 (GPS 고정 상태)
+if fixed > 1:
+    y = np.array([[rtk_data[i]], [self.pVel[i]], [acc_data[i]]])
+    Rd = self.R3[i]  # 3×3 행렬
+    Hd = self.Hd3     # 3×3 행렬
+    Cd = self.Cd3     # 3×2 행렬
+
+# Fix <= 1 (GPS 미고정 상태)
+else:
+    y = np.array([[self.pVel[i]], [acc_data[i]]])
+    Rd = self.R2[i]  # 2×2 행렬
+    Hd = self.Hd2    # 2×3 행렬
+    Cd = self.Cd2    # 2×2 행렬
+            </div>
+            
+            <h3>6.2 칼만 이득 계산</h3>
+            <div class="code-block">
+# 두 경우 모두 동일한 수식, 하지만 Hd와 Rd가 다름
+KBF_temp = self.PBF[i] @ Hd.T @ self.inv_matrix(Hd @ self.PBF[i] @ Hd.T + Rd)
+            </div>
+            
+            <h3>6.3 상태 업데이트</h3>
+            <div class="code-block">
+# 잔차 계산
+self.r[i] = y - Hd @ self.xBF[i]
+
+# Bias-free 추정자 업데이트
+self.xBF[i] = self.xBF[i] + self.KBF[i] @ (y - Hd @ self.xBF[i])
+
+# 최종 추정
+self.xSE[i] = self.xBF[i] + self.V[i] @ self.bBE[i]
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>7. 결론</h2>
+            
+            <div class="highlight-box">
+                <h3>핵심 요약</h3>
+                <ol>
+                    <li><strong>두 경우 모두 칼만 필터로 변위를 추정</strong>하지만, 입력 측정값 구성이 다릅니다.</li>
+                    <li><strong>Fix > 1:</strong> RTK 변위를 직접 측정값으로 사용하여 칼만 필터가 변위를 보정합니다.</li>
+                    <li><strong>Fix ≤ 1:</strong> RTK 변위를 사용하지 않고, 속도와 가속도만으로 칼만 필터가 변위를 추정합니다.</li>
+                    <li><strong>최종 출력:</strong> 두 경우 모두 칼만 필터의 추정 변위값($\mathbf{x}_{SE}[0]$)을 사용합니다.</li>
+                </ol>
+            </div>
+            
+            <div class="info-box">
+                <h3>실용적 의미</h3>
+                <ul>
+                    <li><strong>GPS 고정 상태:</strong> RTK 변위의 정확도가 높으므로 이를 활용하여 더 정확한 변위 추정이 가능합니다.</li>
+                    <li><strong>GPS 미고정 상태:</strong> RTK 변위의 신뢰도가 낮으므로 이를 제외하고, 가속도계 데이터만으로 변위를 추정합니다. 이 경우 적분 오차가 누적될 수 있지만, 칼만 필터가 이를 최소화합니다.</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div style="margin-top: 50px; padding-top: 20px; border-top: 2px solid #667eea; text-align: center; color: #666;">
+            <p>2단계 칼만 필터 계산 과정 문서</p>
+            <p>생성일: 2024</p>
+        </div>
+    </div>
+</body>
+</html>
