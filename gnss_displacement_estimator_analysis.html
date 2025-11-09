@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GNSS DLL 코드 분석 문서</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+            margin-top: 10px;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 5px solid #667eea;
+        }
+
+        h2 {
+            color: #2c3e50;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        h3 {
+            color: #34495e;
+            font-size: 1.4em;
+            margin-top: 25px;
+            margin-bottom: 15px;
+        }
+
+        h4 {
+            color: #667eea;
+            font-size: 1.1em;
+            margin-bottom: 10px;
+        }
+
+        p {
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+
+        ul, ol {
+            margin-left: 30px;
+            margin-bottom: 20px;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+
+        .file-info {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 10px 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95em;
+            color: #1565c0;
+        }
+
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid #3d3d3d;
+            position: relative;
+        }
+
+        .code-block::before {
+            content: attr(data-file);
+            display: block;
+            background: #444;
+            color: #fff;
+            padding: 5px 10px;
+            margin: -20px -20px 15px -20px;
+            border-radius: 5px 5px 0 0;
+            font-size: 0.9em;
+        }
+
+        .code-block pre {
+            margin: 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+
+        .highlight {
+            background: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-top: 4px solid #667eea;
+        }
+
+        .feature-card h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .file-list {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .flow-diagram {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .flow-step {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 15px 25px;
+            margin: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .arrow {
+            display: inline-block;
+            color: #667eea;
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+            font-weight: bold;
+        }
+
+        tr:hover {
+            background: #f5f5f5;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #e3f2fd;
+            color: #1976d2;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin: 5px 5px 5px 0;
+        }
+
+        .file-tag {
+            display: inline-block;
+            padding: 6px 12px;
+            background: #4caf50;
+            color: white;
+            border-radius: 20px;
+            font-size: 0.85em;
+            margin: 5px 5px 5px 0;
+            font-weight: bold;
+        }
+
+        .footer {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📡 GNSS DLL 코드 분석</h1>
+            <p class="subtitle">영종대교 구조물 모니터링 시스템 - 변위 추정 알고리즘</p>
+        </header>
+
+        <div class="content">
+            <!-- 개요 -->
+            <div class="section">
+                <h2>🎯 프로젝트 개요</h2>
+                <p>
+                    이 프로젝트는 <span class="highlight">GNSS(위성항법시스템) 데이터를 처리하는 C++ DLL 프로젝트</span>입니다. 
+                    영종대교의 구조물 모니터링을 위해 실시간 변위를 추정합니다.
+                </p>
+                <p>
+                    <strong>주요 목적:</strong> IMU(가속도계) 데이터와 RTK GPS(Real-Time Kinematic GPS) 데이터를 융합하여 
+                    정밀한 변위(displacement)를 추정하는 시스템입니다.
+                </p>
+            </div>
+
+            <!-- 구조 -->
+            <div class="section">
+                <h2>🏗️ 프로젝트 구조</h2>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>📐 Matrix 클래스</h4>
+                        <div class="file-info">
+                            📁 파일: Matrix.h, Matrix.cpp
+                        </div>
+                        <p><strong>역할:</strong> 수학적 행렬 연산 수행</p>
+                        <ul>
+                            <li>행렬 사칙연산 (+,-,*,/ 오버로딩)</li>
+                            <li>전치행렬 (transpose)</li>
+                            <li>역행렬 계산 (inv)</li>
+                            <li>3D 공간 회전 변환</li>
+                            <li>최대 16개 요소 지원</li>
+                        </ul>
+                        <div class="file-list">
+                            <strong>주요 함수 (Matrix.cpp):</strong><br>
+                            • CMatrix::operator+ (행렬 덧셈, 84-96라인)<br>
+                            • CMatrix::transpose() (전치, 181-195라인)<br>
+                            • CMatrix::inv() (역행렬, 198-238라인)<br>
+                            • CMatrix::transform() (회전변환, 241-266라인)
+                        </div>
+                    </div>
+
+                    <div class="feature-card">
+                        <h4>🔬 CMdata 클래스</h4>
+                        <div class="file-info">
+                            📁 파일: Mdata.h, Mdata.cpp
+                        </div>
+                        <p><strong>역할:</strong> 측정 데이터 전처리</p>
+                        <ul>
+                            <li>Butterworth 저역 통과 필터</li>
+                            <li>Butterworth 고역 통과 필터</li>
+                            <li>HDR(Heritage Dynamic Record) 처리</li>
+                            <li>GPS 고정 상태에 따른 필터 적용</li>
+                            <li>가속도계 데이터 큐 관리</li>
+                        </ul>
+                        <div class="file-list">
+                            <strong>주요 함수 (Mdata.cpp):</strong><br>
+                            • CMdata::SetVal() (데이터 입력, 44-70라인)<br>
+                            • CMdata::ButterworthLowpassAcc() (저역통과, 100-127라인)<br>
+                            • CMdata::ButterworthHighpassGPS() (고역통과, 130-183라인)<br>
+                            • CMdata::HDR() (HDR 처리, 186-252라인)
+                        </div>
+                    </div>
+
+                    <div class="feature-card">
+                        <h4>📊 CEdata 클래스</h4>
+                        <div class="file-info">
+                            📁 파일: Edata.h, Edata.cpp
+                        </div>
+                        <p><strong>역할:</strong> 변위 추정 (Estimation)</p>
+                        <ul>
+                            <li>2단계 칼만 필터</li>
+                            <li>가속도 → 속도 → 변위 추정</li>
+                            <li>GPS 고정 여부에 따른 측정 모델</li>
+                            <li>편향(Bias) 추정 및 보정</li>
+                            <li>실시간 상태 추정</li>
+                        </ul>
+                        <div class="file-list">
+                            <strong>주요 함수 (Edata.cpp):</strong><br>
+                            • CEdata::TwoStgKalmanAVD() (칼만필터, 87-148라인)<br>
+                            • CEdata::PreEstimVel() (속도예측, 151-162라인)<br>
+                            • CEdata::estimateDisp() (변위추정, 165-259라인)
+                        </div>
+                    </div>
+
+                    <div class="feature-card">
+                        <h4>🌐 GNSSDLL 클래스</h4>
+                        <div class="file-info">
+                            📁 파일: GNSSDLL.h, GNSSDLL.cpp
+                        </div>
+                        <p><strong>역할:</strong> C# .NET 인터페이스</p>
+                        <ul>
+                            <li>두 개의 센서 채널 지원</li>
+                            <li>입출력 파일 처리</li>
+                            <li>문자열 경로 변환</li>
+                            <li>CSV 데이터 읽기/쓰기</li>
+                            <li>API 엔드포인트 제공</li>
+                        </ul>
+                        <div class="file-list">
+                            <strong>주요 함수 (GNSSDLL.cpp):</strong><br>
+                            • MyMathFuncs::DoConv() (센서1 처리, 73-110라인)<br>
+                            • MyMathFuncs::DoConv2() (센서2 처리, 112-122라인)<br>
+                            • ConvStrToPChar() (문자열변환, 61-70라인)
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 데이터 흐름 -->
+            <div class="section">
+                <h2>🔄 데이터 처리 흐름</h2>
+                
+                <div class="flow-diagram">
+                    <div class="flow-step">1️⃣ CSV 입력</div>
+                    <span class="arrow">→</span>
+                    <div class="flow-step">2️⃣ 데이터 전처리</div>
+                    <span class="arrow">→</span>
+                    <div class="flow-step">3️⃣ 칼만 필터</div>
+                    <span class="arrow">→</span>
+                    <div class="flow-step">4️⃣ 변위 추정</div>
+                    <span class="arrow">→</span>
+                    <div class="flow-step">5️⃣ CSV 출력</div>
+                </div>
+
+                <h3>상세 프로세스</h3>
+                <ol>
+                    <li><strong>입력 데이터:</strong> CSV 파일로부터 시간, RTK GPS 좌표(X,Y,Z), 가속도계 데이터(X,Y,Z), 고정 여부(fix), 위성 수, 정밀도 등을 읽습니다.
+                        <div class="file-info">
+                            📄 파일: Edata.cpp - estimateDisp() 함수 (165-259라인)
+                        </div>
+                    </li>
+                    <li><strong>전처리 단계:</strong>
+                        <ul>
+                            <li>가속도계 데이터에 Butterworth 저역 통과 필터 적용
+                                <div class="file-info">
+                                    📄 Mdata.cpp - ButterworthLowpassAcc() (100-127라인)
+                                </div>
+                            </li>
+                            <li>GPS 고정(fixed > 1) 상태일 경우 Butterworth 고역 통과 필터 및 HDR 처리
+                                <div class="file-info">
+                                    📄 Mdata.cpp - HDR() (186-252라인)<br>
+                                    📄 Mdata.cpp - ButterworthHighpassGPS() (130-183라인)
+                                </div>
+                            </li>
+                        </ul>
+                    </li>
+                    <li><strong>추정 단계:</strong>
+                        <ul>
+                            <li>GPS 고정 상태에 따라 측정 모델 결정 (3차원 vs 2차원)</li>
+                            <li>2단계 칼만 필터를 통해 변위, 속도, 가속도를 추정</li>
+                            <li>편향 보정 적용
+                                <div class="file-info">
+                                    📄 Edata.cpp - TwoStgKalmanAVD() (87-148라인)
+                                </div>
+                            </li>
+                        </ul>
+                    </li>
+                    <li><strong>출력:</strong> 추정된 변위, 속도, 가속도 데이터를 새로운 CSV 파일로 저장합니다.
+                        <div class="file-info">
+                            📄 Edata.cpp - estimateDisp() 함수의 출력 부분 (249-253라인)
+                        </div>
+                    </li>
+                </ol>
+            </div>
+
+            <!-- 핵심 알고리즘 -->
+            <div class="section">
+                <h2>🧮 핵심 알고리즘</h2>
+                
+                <h3>1. 2단계 칼만 필터 (Two-Stage Kalman Filter)</h3>
+                <p>칼만 필터는 상태 변수(가속도, 속도, 변위)를 추정합니다.</p>
+                
+                <div class="file-info">
+                    📄 Edata.cpp - TwoStgKalmanAVD() 함수 (87-148라인)
+                </div>
+                
+                <div class="code-block" data-file="Edata.cpp - TwoStgKalmanAVD() 함수 (87-148라인)">
+                    <pre>void CEdata::TwoStgKalmanAVD(CMdata mData)
+{
+    CMatrix y, Hd, Cd, Rd;
+    
+    for (int i = 0; i < 3; i++)
+    {
+        // measurement and observation matrix setting
+        if (mData.mFixed == 1)
+        {
+            // 3차원 측정: GPS 위치 + 속도 + 가속도
+            double y_Val[3] = { mData.mPosRTK[i], pVel[i], mData.mACC[i] };
+            y.setValue(3, 1, y_Val);
+            Rd = R3[i];  // 3x3 공분산 행렬
+            Hd = Hd3;     // 3x3 측정 행렬
+            Cd = Cd3;     // 3x2 감도 행렬
+        }
+        else
+        {
+            // 2차원 측정: 속도 + 가속도만
+            double y_Val[2] = { pVel[i], mData.mACC[i] };
+            y.setValue(2, 1, y_Val);
+            Rd = R2[i];  // 2x2 공분산 행렬
+            Hd = Hd2;     // 2x3 측정 행렬
+            Cd = Cd2;     // 2x2 감도 행렬
+        }
+
+        // PRIOR ESTIMATION
+        // Bias free estimator(prior)
+        xBF[i] = Ad * xBF[i];
+        PBF[i] = Ad * PBF[i] * Ad.transpose() + Gd * Gd.transpose();
+        
+        // Sensitivity matrix calculation (prior)
+        U[i] = Ad * V[i];
+
+        // POSTERIOR ESTIMATION
+        // Kalman gain calculation
+        KBF[i] = PBF[i] * Hd.transpose() * (Hd * PBF[i] * Hd.transpose() + Rd).inv();
+        
+        // Sensitivity estimator
+        S[i] = Hd * U[i] + Cd;
+        r[i] = y - Hd * xBF[i];
+        V[i] = U[i] - KBF[i] * S[i];
+        
+        // Bias estimator
+        KBE[i] = PBE[i] * S[i].transpose() * 
+                  (Hd * PBF[i] *Hd.transpose() + S[i] * PBE[i] * S[i].transpose() + Rd).inv();
+        bBE[i] = bBE[i] + KBE[i] * (r[i] - S[i] * bBE[i]);
+        PBE[i] = PBE[i] - KBE[i] * S[i] * PBE[i];
+        
+        // Bias free estimator
+        xBF[i] = xBF[i] + KBF[i] * (y - Hd * xBF[i]);
+        PBF[i] = PBF[i] - KBF[i] * Hd * PBF[i];
+
+        // Sensitive estimator (final result)
+        xSE[i] = xBF[i] + V[i] * bBE[i];
+
+        // 결과 추출
+        eDis[i] = xSE[i].mat[0];  // 변위
+        eVel[i] = xSE[i].mat[1];  // 속도
+        eACC[i] = mData.mACC[i];  // 가속도
+    }
+}</pre>
+                </div>
+
+                <h3>2. Butterworth 필터</h3>
+                <p>신호 처리에서 노이즈를 제거하고 주파수 영역에서 데이터를 정제합니다.</p>
+                
+                <div class="file-info">
+                    📄 Mdata.cpp - ButterworthLowpassAcc() 함수 (100-127라인)
+                </div>
+                
+                <div class="code-block" data-file="Mdata.cpp - ButterworthLowpassAcc() 함수 (100-127라인)">
+                    <pre>void CMdata::ButterworthLowpassAcc(double accX, double accY, double accZ)
+{
+    double gain = 779.6778047;
+
+    // 입력 큐 시프트
+    for (int i = 0; i < 6; i++)
+    {
+        butter_low_acc_in_x[i] = butter_low_acc_in_x[i + 1];
+        butter_low_acc_in_y[i] = butter_low_acc_in_y[i + 1];
+        butter_low_acc_in_z[i] = butter_low_acc_in_z[i + 1];
+        butter_low_acc_out_x[i] = butter_low_acc_out_x[i + 1];
+        butter_low_acc_out_y[i] = butter_low_acc_out_y[i + 1];
+        butter_low_acc_out_z[i] = butter_low_acc_out_z[i + 1];
+    }
+
+    // 새로운 입력 추가
+    butter_low_acc_in_x[5] = accX / gain;
+    butter_low_acc_in_y[5] = accY / gain;
+    butter_low_acc_in_z[5] = accZ / gain;
+
+    // FIR 필터 계수 적용 (IIR 형태)
+    mACC[0] = butter_low_acc_out_x[5] = 
+        (butter_low_acc_in_x[0] + butter_low_acc_in_x[5]) 
+        + 5 * (butter_low_acc_in_x[1] + butter_low_acc_in_x[4])
+        + 10 * (butter_low_acc_in_x[2] + butter_low_acc_in_x[3])
+        + (0.1254306222 * butter_low_acc_out_x[0])
+        + (-0.8811300754 * butter_low_acc_out_x[1])
+        + (2.5452528683 * butter_low_acc_out_x[2])
+        + (-3.8060181193 * butter_low_acc_out_x[3])
+        + (2.9754221097 * butter_low_acc_out_x[4]);
+    
+    // Y, Z 축도 동일한 처리
+    ...
+}</pre>
+                </div>
+
+                <h3>3. HDR (Heritage Dynamic Record)</h3>
+                <p>GPS 데이터의 동적 특성을 보정하여 안정적인 변위 추정을 수행합니다.</p>
+                
+                <div class="file-info">
+                    📄 Mdata.cpp - HDR() 함수 (186-252라인)
+                </div>
+                
+                <div class="code-block" data-file="Mdata.cpp - HDR() 함수 (186-252라인)">
+                    <pre>void CMdata::HDR()
+{
+    // x축 HDR 처리
+    hdr_out_x[0] = hdr_out_x[1];
+    hdr_out_x[1] = mPosRTK[0] + hdr_I_x;
+    mPosRTK[0] = hdr_out_x[1];
+
+    // 가중치 계산: 임계값 이하일 때만 적분 보정
+    if (abs(mPosRTK[0]) < hdr_thres_x || abs(mACC[0]) < hdr_thres_x)
+        hdr_W_x = 1.0;  // 보정 활성화
+    else
+        hdr_W_x = 0.0;  // 보정 비활성화
+
+    // 반복 계수 계산: 부호 일치 시 누적
+    if (GetSign(hdr_out_x[1]) == GetSign(hdr_out_x[0]))
+    {
+        hdr_r_x += 1.0;
+        hdr_R_x = (1. + hdr_c1_x) / (1. + hdr_c1_x * pow(hdr_r_x, hdr_c2_x));
+    }
+    else
+    {
+        hdr_r_x = 1.0;
+        hdr_R_x = 1.0;
+    }
+    
+    // 적분 보정
+    hdr_I_x = hdr_I_x - hdr_W_x * hdr_R_x * GetSign(hdr_out_x[1]) * hdr_ic_x;
+
+    // Y, Z축도 동일하게 처리
+    ...
+}</pre>
+                </div>
+            </div>
+
+            <!-- 특징 -->
+            <div class="section">
+                <h2>✨ 시스템 특징</h2>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>특징</th>
+                            <th>설명</th>
+                            <th>구현 파일</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>이중 센서 채널</strong></td>
+                            <td>영종대교의 두 지점을 동시에 모니터링</td>
+                            <td>
+                                <span class="file-tag">GNSSDLL.cpp</span><br>
+                                DoConv() : 센서1 (73-110라인)<br>
+                                DoConv2() : 센서2 (112-122라인)
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>GPS 고정 상태 자동 전환</strong></td>
+                            <td>RTK 고정 여부에 따라 측정 모델이 자동으로 변경</td>
+                            <td>
+                                <span class="file-tag">Edata.cpp</span><br>
+                                TwoStgKalmanAVD() (96-111라인)<br>
+                                3차원 vs 2차원 모델 분기
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>실시간 필터링</strong></td>
+                            <td>Butterworth 필터로 실시간 데이터 정제</td>
+                            <td>
+                                <span class="file-tag">Mdata.cpp</span><br>
+                                ButterworthLowpassAcc() (100-127라인)<br>
+                                ButterworthHighpassGPS() (130-183라인)
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>편향 보정</strong></td>
+                            <td>2단계 칼만 필터로 센서 편향 자동 추정 및 보정</td>
+                            <td>
+                                <span class="file-tag">Edata.cpp</span><br>
+                                TwoStgKalmanAVD() (125-148라인)<br>
+                                Bias Estimator 구현
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>C# 인터페이스</strong></td>
+                            <td>.NET 환경에서 쉽게 사용 가능한 DLL</td>
+                            <td>
+                                <span class="file-tag">GNSSDLL.h</span><br>
+                                <span class="file-tag">GNSSDLL.cpp</span><br>
+                                MyMathFuncs 클래스 (19-47라인)
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 파일 정보 -->
+            <div class="section">
+                <h2>📁 주요 파일 정보</h2>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>파일명</th>
+                            <th>라인 수</th>
+                            <th>기능</th>
+                            <th>주요 클래스/함수</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>GNSSDLL.cpp</code></td>
+                            <td>144</td>
+                            <td>메인 DLL 엔트리 포인트, C# 인터페이스</td>
+                            <td>
+                                • MyMathFuncs::DoConv() (73라인)<br>
+                                • MyMathFuncs::DoConv2() (112라인)<br>
+                                • ConvStrToPChar() (61라인)
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><code>GNSSDLL.h</code></td>
+                            <td>49</td>
+                            <td>DLL 헤더, API 정의</td>
+                            <td>• MyMathFuncs 클래스 정의</td>
+                        </tr>
+                        <tr>
+                            <td><code>Matrix.cpp</code></td>
+                            <td>273</td>
+                            <td>행렬 연산 구현</td>
+                            <td>
+                                • operator+, -, *, / (84-178라인)<br>
+                                • transpose() (181-195라인)<br>
+                                • inv() (198-238라인)<br>
+                                • transform() (241-266라인)
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><code>Matrix.h</code></td>
+                            <td>45</td>
+                            <td>행렬 클래스 정의</td>
+                            <td>• CMatrix 클래스 인터페이스</td>
+                        </tr>
+                        <tr>
+                            <td><code>Mdata.cpp</code></td>
+                            <td>262</td>
+                            <td>데이터 전처리 구현</td>
+                            <td>
+                                • SetVal() (44라인)<br>
+                                • ButterworthLowpassAcc() (100라인)<br>
+                                • ButterworthHighpassGPS() (130라인)<br>
+                                • HDR() (186라인)
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><code>Mdata.h</code></td>
+                            <td>49</td>
+                            <td>전처리 클래스 정의</td>
+                            <td>• CMdata 클래스 및 변수 선언</td>
+                        </tr>
+                        <tr>
+                            <td><code>Edata.cpp</code></td>
+                            <td>262</td>
+                            <td>변위 추정 구현</td>
+                            <td>
+                                • TwoStgKalmanAVD() (87라인)<br>
+                                • PreEstimVel() (151라인)<br>
+                                • estimateDisp() (165라인)
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><code>Edata.h</code></td>
+                            <td>47</td>
+                            <td>추정 클래스 정의</td>
+                            <td>• CEdata 클래스 및 칼만필터 변수 선언</td>
+                        </tr>
+                        <tr>
+                            <td><code>Stdafx.h</code></td>
+                            <td>8</td>
+                            <td>표준 헤더 포함</td>
+                            <td>• 공통 헤더</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 사용법 -->
+            <div class="section">
+                <h2>💻 사용 방법</h2>
+                
+                <h3>C#에서 호출 예시</h3>
+                <div class="file-info">
+                    📄 사용 예시: C# 프로젝트에서 GNSSDLL.dll 참조
+                </div>
+                <div class="code-block" data-file="C# 사용 예시">
+                    <pre>using GNSSDLL;
+using System;
+
+class Program
+{
+    static void Main()
+    {
+        // 변환기 초기화
+        MyMathFuncs.InitConveter(0);  // 0: Sensor 1, 1: Sensor 2
+
+        // 데이터 처리 - 센서 1
+        MyMathFuncs.DoConv(
+            "C:\\Input\\",      // 입력 폴더 경로
+            "C:\\Output\\",     // 출력 폴더 경로
+            "sensor_data.csv"   // 입력 파일명
+        );
+
+        // 데이터 처리 - 센서 2
+        MyMathFuncs.DoConv2(
+            "C:\\Input\\",
+            "C:\\Output\\",
+            "sensor_data2.csv"
+        );
+        
+        Console.WriteLine("처리 완료!");
+    }
+}</pre>
+                </div>
+
+                <h3>입력 CSV 형식</h3>
+                <div class="file-info">
+                    📄 format: Edata.cpp - estimateDisp() 함수가 읽는 형식 (217-226라인)
+                </div>
+                <div class="code-block" data-file="입력 CSV 형식">
+                    <pre>Time, RTK_X, RTK_Y, RTK_Z, Acc_X, Acc_Y, Acc_Z, Fix, NumSat, Precision
+0.00, 123.456, 456.789, 789.123, 0.001, 0.002, 9.801, 2, 12, 0.005
+0.01, 123.457, 456.790, 789.124, 0.002, 0.001, 9.802, 2, 12, 0.005
+0.02, 123.458, 456.791, 789.125, 0.001, 0.001, 9.801, 2, 12, 0.005
+...</pre>
+                </div>
+
+                <h3>출력 CSV 형식</h3>
+                <div class="file-info">
+                    📄 format: Edata.cpp - estimateDisp() 함수가 출력하는 형식 (249-253라인)
+                </div>
+                <div class="code-block" data-file="출력 CSV 형식">
+                    <pre>Time, ACC_X, ACC_Y, ACC_Z, VEL_X, VEL_Y, VEL_Z, DIS_X, DIS_Y, DIS_Z
+0.00, 0.001, 0.002, 9.801, 0.00005, 0.0001, 0.0, 0.0, 0.0, 0.0
+0.01, 0.002, 0.001, 9.802, 0.0001, 0.00008, 0.0, 0.0, 0.0, 0.0
+0.02, 0.001, 0.001, 9.801, 0.00015, 0.00007, 0.0, 0.0, 0.0, 0.0
+...</pre>
+                </div>
+            </div>
+
+            <!-- 태그 -->
+            <div class="section">
+                <h3>기술 스택</h3>
+                <span class="tag">C++</span>
+                <span class="tag">DLL</span>
+                <span class="tag">.NET Framework</span>
+                <span class="tag">GNSS</span>
+                <span class="tag">IMU</span>
+                <span class="tag">RTK GPS</span>
+                <span class="tag">칼만 필터</span>
+                <span class="tag">Butterworth 필터</span>
+                <span class="tag">구조물 모니터링</span>
+                <span class="tag">변위 추정</span>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p><strong>GNSS DLL 코드 분석 문서</strong></p>
+            <p>영종대교 구조물 모니터링 시스템</p>
+            <p>Generated: 2024</p>
+        </div>
+    </div>
+</body>
+</html>
